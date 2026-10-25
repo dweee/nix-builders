@@ -68,7 +68,7 @@ jobs:
       id-token: write
       contents: read
       actions: write # purge_runs deletes earlier runs
-    uses: dweee/Nix_Remote-Builders-Distributed/.github/workflows/nix-builder.yml@7c934df7df3067fe2d55b752289eea8e18c6d3cb
+    uses: dweee/Nix_Remote-Builders-Distributed/.github/workflows/nix-builder.yml@afc31ce035f8082246e1a172ff9b0b9b090bed2d
     with:
       # Optional: specify a GitHub Actions Environment name if your Tailscale
       # secrets (OAuth or OIDC) are stored within an Environment
