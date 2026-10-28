@@ -1,0 +1,59 @@
+name: "diag"
+run-name: "diag [${{ inputs.id }}]"
+on:
+  workflow_dispatch:
+    inputs:
+      id:
+        type: string
+        default: "x"
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare netrc and masks
+        id: prep
+        shell: bash
+        env:
+          SUB: ${{ secrets.ATTIC_SUBSTITUTER }}
+          T: ${{ secrets.ATTIC_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::$SUB"
+          host=$(sed -E 's#^[a-z]+://([^/:]+).*#\1#' <<<"$SUB")
+          echo "::add-mask::$host"
+          d="$RUNNER_TEMP/nix-remote"; mkdir -p "$d"; chmod 700 "$d"
+          ( umask 077; printf 'machine %s\npassword %s\n' "$host" "$T" > "$d/netrc" )
+          echo "NETRC=$d/netrc" >> "$GITHUB_ENV"
+      - uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          extra-conf: |
+            netrc-file = ${{ runner.temp }}/nix-remote/netrc
+      - name: Diagnose
+        shell: bash
+        env:
+          SUB: ${{ secrets.ATTIC_SUBSTITUTER }}
+          T: ${{ secrets.ATTIC_TOKEN }}
+        run: |
+          set +e
+          ls -la "$NETRC" "$(dirname "$NETRC")"
+          echo "--- nix config show"
+          nix config show 2>&1 | grep -E '^(netrc-file|substituters|extra-substituters|trusted-users|trusted-substituters)' | sed -E 's#https?://[^ ]+#<url>#g'
+          echo "--- /etc/nix"
+          ls -la /etc/nix; sed -E 's#https?://[^ ]+#<url>#g' /etc/nix/nix.conf /etc/nix/nix.custom.conf 2>&1
+          echo "--- token claims (no secret)"
+          python3 - <<'PY'
+          import os,base64,json
+          t=os.environ["T"].split(".")
+          p=t[1]+"="*(-len(t[1])%4)
+          c=json.loads(base64.urlsafe_b64decode(p))
+          print(json.dumps({k:v for k,v in c.items()},indent=1))
+          PY
+          u="${SUB%/}/nix-cache-info"
+          echo "--- curl none";   curl -sS -o /dev/null -w '%{http_code}\n' "$u"
+          echo "--- curl netrc";  curl -sS -o /dev/null -w '%{http_code}\n' --netrc-file "$NETRC" "$u"
+          echo "--- curl bearer"; curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $T" "$u"
+          echo "--- curl basic";  curl -sS -o /dev/null -w '%{http_code}\n' -u "x:$T" "$u"
+          echo "--- nix path-info (netrc-file option)"
+          nix path-info --store "${SUB%/}" --option netrc-file "$NETRC" --extra-experimental-features nix-command /nix/store/x39ia78b0000000000000000000000000-x 2>&1 | sed -E 's#https?://[^ ]+#<url>#g' | head
+          echo "--- nix store info (netrc-file option)"
+          nix store info --store "${SUB%/}" --option netrc-file "$NETRC" --extra-experimental-features nix-command 2>&1 | sed -E 's#https?://[^ ]+#<url>#g' | head
