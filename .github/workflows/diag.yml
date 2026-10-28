@@ -53,7 +53,13 @@ jobs:
           echo "--- curl netrc";  curl -sS -o /dev/null -w '%{http_code}\n' --netrc-file "$NETRC" "$u"
           echo "--- curl bearer"; curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $T" "$u"
           echo "--- curl basic";  curl -sS -o /dev/null -w '%{http_code}\n' -u "x:$T" "$u"
-          echo "--- nix path-info (netrc-file option)"
-          nix path-info --store "${SUB%/}" --option netrc-file "$NETRC" --extra-experimental-features nix-command /nix/store/x39ia78b0000000000000000000000000-x 2>&1 | sed -E 's#https?://[^ ]+#<url>#g' | head
-          echo "--- nix store info (netrc-file option)"
-          nix store info --store "${SUB%/}" --option netrc-file "$NETRC" --extra-experimental-features nix-command 2>&1 | sed -E 's#https?://[^ ]+#<url>#g' | head
+          echo "--- determinate netrc"
+          ls -la /nix/var/determinate/ ; sudo wc -c /nix/var/determinate/netrc; sudo sed -E 's/(password ).*/\1<redacted>/' /nix/var/determinate/netrc | sed -E 's#(machine ).*#\1<host>#'
+          P=/nix/store/x39ia78bi71dn7q08gx2yjvj4g8dbnsv-linux-cachyos-server-7.3.0
+          echo "--- BEFORE: substitute only"
+          nix build --max-jobs 0 --no-link --store daemon "$P" 2>&1 | sed -E 's#https?://[^ ]+#<url>#g' | tail -8; echo "rc=${PIPESTATUS[0]}"
+          echo "--- append our netrc to determinate netrc"
+          sudo tee -a /nix/var/determinate/netrc < "$NETRC" >/dev/null
+          echo "--- AFTER: substitute only"
+          nix build --max-jobs 0 --no-link "$P" 2>&1 | sed -E 's#https?://[^ ]+#<url>#g' | tail -8; echo "rc=${PIPESTATUS[0]}"
+          ls -d "$P" && echo present
