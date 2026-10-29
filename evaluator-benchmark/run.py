@@ -42,7 +42,10 @@ def main():
     a.add_argument('--repetitions', type=int, default=3)
     a.add_argument('--timeout', type=int, default=180)
     a.add_argument('--quick', action='store_true')
+    a.add_argument('--workloads', nargs='+')
     args = a.parse_args()
+    args.output = args.output.resolve()
+    args.output.parent.mkdir(parents=True, exist_ok=True)
     engines = json.loads(args.engines.read_text())
     fixtures = P / 'fixtures'
     meta = json.loads(subprocess.check_output(['nix', '--extra-experimental-features', 'nix-command flakes', 'flake', 'metadata', 'path:' + str(fixtures), '--json']))
@@ -80,6 +83,7 @@ def main():
             for lazy, cache in itertools.product([False,True], [False,True]):
                 jobs += [('cache-scalar',{'lazy-trees':lazy,'eval-cache':cache,'eval-cores':0},state) for state in ['cold','warm']]
         if args.quick: jobs = jobs[:4]
+        if args.workloads: jobs = [job for job in jobs if job[0] in args.workloads]
         random.Random(29102026).shuffle(jobs)
         for w, options, mode in jobs:
             key = canonical([e['name'],w,options,mode])[:16]
@@ -118,7 +122,9 @@ def main():
                 rows.append(row)
                 with args.output.open('a') as f: f.write(json.dumps(row)+'\n')
                 if r['returncode'] or 'digest' not in r: break
+    unexpected = [r for r in rows if r['workload'] == 'language' and (r['returncode'] or 'digest' not in r)]
     manifest = dict(host=args.host,utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),platform=platform.platform(),machine=platform.machine(),cpus=os.cpu_count(),load=os.getloadavg(),engines=engines,nixpkgs=np,fixture_sha256={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in fixtures.iterdir() if p.is_file()},repetitions=args.repetitions)
     args.output.with_suffix('.manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    if unexpected: raise SystemExit('Language validation failed; inspect raw trial errors')
 
 if __name__ == '__main__': main()
