@@ -1,0 +1,44 @@
+name: Evaluator benchmark
+on:
+  push:
+    branches: [bench/eval-20261029]
+    paths: ['evaluator-benchmark/**', '.github/workflows/evaluator-benchmark.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evaluate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: github-x86
+          - os: ubuntu-26.04-arm
+            label: github-arm
+          - os: macos-latest
+            label: github-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          determinate: false
+      - name: Import pinned evaluator releases
+        run: python3 evaluator-benchmark/prepare.py "$RUNNER_TEMP/evaluators"
+      - name: Run evaluation trials
+        run: |
+          mkdir -p results
+          python3 evaluator-benchmark/run.py --engines "$RUNNER_TEMP/evaluators/engines.json" --host '${{ matrix.label }}' --output "results/${{ matrix.label }}.jsonl" --repetitions 3
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: evaluator-${{ matrix.label }}
+          path: |
+            results/*.jsonl
+            results/*.manifest.json
+            ${{ runner.temp }}/evaluators/*.provenance.txt
