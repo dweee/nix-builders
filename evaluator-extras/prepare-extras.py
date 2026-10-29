@@ -7,7 +7,7 @@ system=('aarch64' if platform.machine() in ['arm64','aarch64'] else 'x86_64') + 
 r=subprocess.check_output([sys.executable,str(P/'import-release.py'),f'https://releases.lix.systems/lix/lix-2.96.0/lix-2.96.0-{system}.tar.xz',str(state/'lix-2.96.0')],text=True)
 (state/'lix-2.96.0.provenance.txt').write_text(r)
 engines=[dict(name='lix-2.96.0',kind='nix',bin=next(l for l in r.splitlines() if l.startswith('/nix/store/'))+'/bin/nix')]
-np=json.loads(subprocess.check_output(['nix','--extra-experimental-features','nix-command flakes','flake','metadata','github:NixOS/nixpkgs/55bfb4d7437bd4e09ab7cba58a43bd68eb310044','--json']))['path']
+np=json.loads(subprocess.check_output(['nix','--extra-experimental-features','nix-command flakes','flake','archive','github:NixOS/nixpkgs/55bfb4d7437bd4e09ab7cba58a43bd68eb310044','--json']))['path']
 expr='(import '+np+' { config = {}; overlays = []; }).nixVersions.git'
 p=subprocess.run(['nix','--extra-experimental-features','nix-command flakes','build','--impure','--no-link','--print-out-paths','--max-jobs','0','--builders','','--option','substituters','https://cache.nixos.org','--expr',expr],text=True,capture_output=True)
 (state/'cppnix-pre.provenance.txt').write_text(p.stdout+p.stderr)

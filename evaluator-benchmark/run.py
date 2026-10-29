@@ -49,7 +49,7 @@ def main():
     engines = json.loads(args.engines.read_text())
     fixtures = P / 'fixtures'
     meta = json.loads(subprocess.check_output(['nix', '--extra-experimental-features', 'nix-command flakes', 'flake', 'metadata', 'path:' + str(fixtures), '--json']))
-    np = json.loads(subprocess.check_output(['nix', '--extra-experimental-features', 'nix-command flakes', 'flake', 'metadata', 'github:NixOS/nixpkgs/55bfb4d7437bd4e09ab7cba58a43bd68eb310044', '--json']))['path']
+    np = json.loads(subprocess.check_output(['nix', '--extra-experimental-features', 'nix-command flakes', 'flake', 'archive', 'github:NixOS/nixpkgs/55bfb4d7437bd4e09ab7cba58a43bd68eb310044', '--json']))['path']
     base = args.output.parent / ('cache-' + args.host)
     base.mkdir(parents=True, exist_ok=True)
     conf = base / 'empty-conf'; conf.mkdir(exist_ok=True)
