@@ -41,6 +41,7 @@ jobs:
           git -C "$RUNNER_TEMP/snix" checkout 506b491459c3ec1dffc0a7b05f85e60a3987ad79
           np=$(nix flake metadata github:NixOS/nixpkgs/55bfb4d7437bd4e09ab7cba58a43bd68eb310044 --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["path"])')
           export BENCH_NIXPKGS="$np"
+          export SNIX_BUILD_SANDBOX_SHELL=/bin/sh
           nix shell --impure --expr 'let p = import (builtins.getEnv "BENCH_NIXPKGS") {}; in [ p.rustc p.cargo p.gcc p.pkg-config p.protobuf p.openssl.dev ]' --command bash -c 'cd "$RUNNER_TEMP/tvix"; cargo build --release --locked -j 3 -p tvix-cli'
           nix shell --impure --expr 'let p = import (builtins.getEnv "BENCH_NIXPKGS") {}; in [ p.rustc p.cargo p.gcc p.pkg-config p.protobuf p.openssl.dev ]' --command bash -c 'cd "$RUNNER_TEMP/snix/snix"; cargo build --release --locked -j 3 -p snix-cli-eval --no-default-features'
       - name: Combine evaluator manifest
