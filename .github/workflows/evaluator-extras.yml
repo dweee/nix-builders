@@ -1,0 +1,67 @@
+name: Evaluator development and Rust trials
+on:
+  push:
+    branches: [bench/eval-20261029]
+    paths: ['evaluator-extras/**', '.github/workflows/evaluator-extras.yml']
+permissions:
+  contents: read
+jobs:
+  extras:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: github-x86-extra
+          - os: ubuntu-26.04-arm
+            label: github-arm-extra
+          - os: macos-latest
+            label: github-darwin-extra
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          determinate: false
+      - name: Import releases and development snapshot
+        run: |
+          python3 evaluator-benchmark/prepare.py "$RUNNER_TEMP/evaluators"
+          python3 evaluator-extras/prepare-extras.py "$RUNNER_TEMP/evaluators"
+      - name: Build pinned Rust evaluators
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/tvlfyi/tvix.git "$RUNNER_TEMP/tvix"
+          git -C "$RUNNER_TEMP/tvix" checkout 259a1617ef482482d3425d74502822ac58c4d024
+          git clone https://git.snix.dev/snix/snix.git "$RUNNER_TEMP/snix"
+          git -C "$RUNNER_TEMP/snix" checkout 506b491459c3ec1dffc0a7b05f85e60a3987ad79
+          np=$(nix flake metadata github:NixOS/nixpkgs/55bfb4d7437bd4e09ab7cba58a43bd68eb310044 --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["path"])')
+          export BENCH_NIXPKGS="$np"
+          nix shell --impure --expr 'let p = import (builtins.getEnv "BENCH_NIXPKGS") {}; in [ p.rustc p.cargo p.gcc p.pkg-config p.protobuf p.openssl.dev ]' --command bash -c 'cd "$RUNNER_TEMP/tvix"; cargo build --release --locked -j 3 -p tvix-cli'
+          nix shell --impure --expr 'let p = import (builtins.getEnv "BENCH_NIXPKGS") {}; in [ p.rustc p.cargo p.gcc p.pkg-config p.protobuf p.openssl.dev ]' --command bash -c 'cd "$RUNNER_TEMP/snix/snix"; cargo build --release --locked -j 3 -p snix-cli-eval --no-default-features'
+      - name: Combine evaluator manifest
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])
+          es=json.loads((p/'evaluators/engines.json').read_text())
+          es=[e for e in es if e['name']!='installed']+json.loads((p/'evaluators/extras.json').read_text())
+          es += [dict(name='tvix',kind='rust',bin=str(p/'tvix/target/release/tvix'),revision='259a1617ef482482d3425d74502822ac58c4d024'),dict(name='snix',kind='rust',bin=str(p/'snix/snix/target/release/snix-eval'),revision='506b491459c3ec1dffc0a7b05f85e60a3987ad79')]
+          (p/'evaluators/combined.json').write_text(json.dumps(es))
+          PY
+      - name: Evaluate compatibility and timing
+        run: |
+          mkdir -p results
+          python3 evaluator-benchmark/run.py --engines "$RUNNER_TEMP/evaluators/combined.json" --host '${{ matrix.label }}' --output 'results/${{ matrix.label }}.jsonl' --quick --repetitions 3
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: evaluator-${{ matrix.label }}
+          path: |
+            results/*.jsonl
+            results/*.manifest.json
+            ${{ runner.temp }}/evaluators/*.provenance.txt
