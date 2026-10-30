@@ -48,6 +48,14 @@ on:
         description: "Tailscale ACL tags to apply to runner nodes (optional)"
         type: string
         default: "tag:nix-builder"
+      preserve_run_history:
+        description: "Keep earlier completed workflow runs for diagnostic sessions"
+        type: boolean
+        default: false
+      skip_cache_push:
+        description: "Do not publish outputs from this session"
+        type: boolean
+        default: false
       timeout_startup:
         description: "Timeout in seconds to wait for initial Tailscale connection (0 to disable)"
         type: number
@@ -82,10 +90,10 @@ jobs:
       timeout_startup: ${{ inputs.timeout_startup != '' && format('{0}', inputs.timeout_startup) || '300' }}
       timeout_idle: ${{ inputs.timeout_idle != '' && format('{0}', inputs.timeout_idle) || '300' }}
       timeout_linger: ${{ inputs.timeout_linger != '' && format('{0}', inputs.timeout_linger) || '0' }}
-      attic_push: ${{ vars.ATTIC_PUSH_ENABLED != 'false' && 'true' || 'false' }}
+      attic_push: ${{ !inputs.skip_cache_push && vars.ATTIC_PUSH_ENABLED != 'false' && 'true' || 'false' }}
       # `all` also uploads paths copied to the builders (e.g. a third-party
       # kernel fetched on the client); the default keeps builder-built outputs.
       push_paths: ${{ vars.ATTIC_PUSH_PATHS == 'all' && 'all' || 'built' }}
       magic_nix_cache: "false"
-      purge_runs: "true"
+      purge_runs: ${{ inputs.preserve_run_history && 'false' || 'true' }}
     secrets: inherit
