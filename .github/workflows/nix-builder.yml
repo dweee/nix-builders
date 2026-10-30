@@ -82,10 +82,10 @@ jobs:
       timeout_startup: ${{ inputs.timeout_startup != '' && format('{0}', inputs.timeout_startup) || '300' }}
       timeout_idle: ${{ inputs.timeout_idle != '' && format('{0}', inputs.timeout_idle) || '300' }}
       timeout_linger: ${{ inputs.timeout_linger != '' && format('{0}', inputs.timeout_linger) || '0' }}
-      attic_push: ${{ vars.ATTIC_PUSH_ENABLED != 'false' && 'true' || 'false' }}
+      attic_push: "false"
       # `all` also uploads paths copied to the builders (e.g. a third-party
       # kernel fetched on the client); the default keeps builder-built outputs.
       push_paths: ${{ vars.ATTIC_PUSH_PATHS == 'all' && 'all' || 'built' }}
       magic_nix_cache: "false"
-      purge_runs: "true"
+      purge_runs: "false"
     secrets: inherit
