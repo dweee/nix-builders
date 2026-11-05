@@ -76,7 +76,7 @@ jobs:
       id-token: write
       contents: read
       actions: write # purge_runs deletes earlier runs
-    uses: dweee/Nix_Remote-Builders-Distributed/.github/workflows/nix-builder.yml@9187420c31e39229c0f41b596749e84c0b3f4897
+    uses: dweee/Nix_Remote-Builders-Distributed/.github/workflows/nix-builder.yml@f930ecf10ca893da1649493e313e929a952f6cf9
     with:
       # Optional: specify a GitHub Actions Environment name if your Tailscale
       # secrets (OAuth or OIDC) are stored within an Environment
@@ -91,6 +91,9 @@ jobs:
       timeout_idle: ${{ inputs.timeout_idle != '' && format('{0}', inputs.timeout_idle) || '300' }}
       timeout_linger: ${{ inputs.timeout_linger != '' && format('{0}', inputs.timeout_linger) || '0' }}
       attic_push: ${{ !inputs.skip_cache_push && vars.ATTIC_PUSH_ENABLED != 'false' && 'true' || 'false' }}
+      # Publication only: OIDC grants write access after server activation.
+      # The endpoint is a secret to keep cache metadata masked in public logs.
+      niks3_push: ${{ !inputs.skip_cache_push && vars.NIKS3_PUSH_ENABLED == 'true' && 'true' || 'false' }}
       # `all` also uploads paths copied to the builders (e.g. a third-party
       # kernel fetched on the client); the default keeps builder-built outputs.
       push_paths: ${{ vars.ATTIC_PUSH_PATHS == 'all' && 'all' || 'built' }}
