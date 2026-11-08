@@ -15,10 +15,11 @@
 # Also set log retention to 1 day and require approval for outside
 # contributors' workflows in the repository's Actions settings.
 #
-# Cache settings are repository secrets (NIX_SUBSTITUTERS, NIX_TRUSTED_PUBLIC_KEYS,
-# ATTIC_ENDPOINT, ATTIC_CACHE, ATTIC_SUBSTITUTER, ATTIC_PUBLIC_KEY, ATTIC_TOKEN),
-# not variables or inputs: GitHub masks secrets everywhere but prints the others
-# in the run log. vars.ATTIC_PUSH_ENABLED = "false" substitutes without pushing.
+# Cache reads use the shared Niks3 read-only GitHub OIDC grant; publication uses
+# its independent publisher audience. No static private cache token is passed.
+# Set NIKS3_PUSH_ENABLED=false or skip_cache_push for a read-only session.
+# The endpoint and optional additional public cache metadata remain secrets so
+# the reusable workflow can mask them in public logs.
 
 name: "Nix Remote Builder"
 # Only the random session ID; nix-remote leaves `target` empty unless
@@ -76,7 +77,7 @@ jobs:
       id-token: write
       contents: read
       actions: write # purge_runs deletes earlier runs
-    uses: dweee/Nix_Remote-Builders-Distributed/.github/workflows/nix-builder.yml@f930ecf10ca893da1649493e313e929a952f6cf9
+    uses: dweee/Nix_Remote-Builders-Distributed/.github/workflows/nix-builder.yml@601d23def65db0c0d5b95fbe751040716b272221
     with:
       # Optional: specify a GitHub Actions Environment name if your Tailscale
       # secrets (OAuth or OIDC) are stored within an Environment
@@ -90,13 +91,19 @@ jobs:
       timeout_startup: ${{ inputs.timeout_startup != '' && format('{0}', inputs.timeout_startup) || '300' }}
       timeout_idle: ${{ inputs.timeout_idle != '' && format('{0}', inputs.timeout_idle) || '300' }}
       timeout_linger: ${{ inputs.timeout_linger != '' && format('{0}', inputs.timeout_linger) || '0' }}
-      attic_push: ${{ !inputs.skip_cache_push && vars.ATTIC_PUSH_ENABLED != 'false' && 'true' || 'false' }}
-      # Publication only: OIDC grants write access after server activation.
-      # The endpoint is a secret to keep cache metadata masked in public logs.
-      niks3_push: ${{ !inputs.skip_cache_push && vars.NIKS3_PUSH_ENABLED == 'true' && 'true' || 'false' }}
-      # `all` also uploads paths copied to the builders (e.g. a third-party
-      # kernel fetched on the client); the default keeps builder-built outputs.
-      push_paths: ${{ vars.ATTIC_PUSH_PATHS == 'all' && 'all' || 'built' }}
+      attic_substitute: "false"
+      attic_push: "false"
+      niks3_substitute: "true"
+      niks3_push: ${{ !inputs.skip_cache_push && vars.NIKS3_PUSH_ENABLED != 'false' && 'true' || 'false' }}
+      # Include copied and completed build-only outputs, including work retained
+      # after a later build failure. Operators may select builder-built paths.
+      push_paths: ${{ vars.NIKS3_PUSH_PATHS == 'built' && 'built' || 'all' }}
       magic_nix_cache: "false"
       purge_runs: ${{ inputs.preserve_run_history && 'false' || 'true' }}
-    secrets: inherit
+    secrets:
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+      TS_AUDIENCE: ${{ secrets.TS_AUDIENCE }}
+      NIKS3_ENDPOINT: ${{ secrets.NIKS3_ENDPOINT }}
+      NIX_SUBSTITUTERS: ${{ secrets.NIX_SUBSTITUTERS }}
+      NIX_TRUSTED_PUBLIC_KEYS: ${{ secrets.NIX_TRUSTED_PUBLIC_KEYS }}
