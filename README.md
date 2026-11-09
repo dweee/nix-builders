@@ -9,3 +9,8 @@ and the cache settings `ATTIC_ENDPOINT`, `ATTIC_CACHE`, `ATTIC_SUBSTITUTER`,
 `ATTIC_PUBLIC_KEY`, `NIX_SUBSTITUTERS`, `NIX_TRUSTED_PUBLIC_KEYS`. They are secrets
 because GitHub prints variables and inputs in public run logs.
 Variable: `ATTIC_PUSH_ENABLED` (`false` stops pushing to the cache).
+
+The optional `push_paths` dispatch input overrides publication for one session:
+`built` selects built outputs and their runtime closures; `all` also selects
+copied build-only inputs. An empty input preserves the repository default from
+`NIKS3_PUSH_PATHS`. Private sessions should explicitly select `built`.
