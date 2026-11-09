@@ -57,6 +57,10 @@ on:
         description: "Do not publish outputs from this session"
         type: boolean
         default: false
+      push_paths:
+        description: "Session publication selection (empty keeps the repository default)"
+        type: string
+        default: ""
       timeout_startup:
         description: "Timeout in seconds to wait for initial Tailscale connection (0 to disable)"
         type: number
@@ -95,9 +99,10 @@ jobs:
       attic_push: "false"
       niks3_substitute: "true"
       niks3_push: ${{ !inputs.skip_cache_push && vars.NIKS3_PUSH_ENABLED != 'false' && 'true' || 'false' }}
-      # Include copied and completed build-only outputs, including work retained
-      # after a later build failure. Operators may select builder-built paths.
-      push_paths: ${{ vars.NIKS3_PUSH_PATHS == 'built' && 'built' || 'all' }}
+      # Private sessions exclude copied build-only sources without changing the
+      # default for concurrent public sessions. The called workflow rejects
+      # any value other than built/all before publishing.
+      push_paths: ${{ inputs.push_paths != '' && inputs.push_paths || (vars.NIKS3_PUSH_PATHS == 'built' && 'built' || 'all') }}
       magic_nix_cache: "false"
       purge_runs: ${{ inputs.preserve_run_history && 'false' || 'true' }}
     secrets:
