@@ -61,6 +61,10 @@ on:
         description: "Session publication selection (empty keeps the repository default)"
         type: string
         default: ""
+      experimental_darwin_userspace:
+        description: "Opt-in disposable public Darwin userspace comparison"
+        type: boolean
+        default: false
       timeout_startup:
         description: "Timeout in seconds to wait for initial Tailscale connection (0 to disable)"
         type: number
@@ -81,12 +85,13 @@ jobs:
       id-token: write
       contents: read
       actions: write # purge_runs deletes earlier runs
-    uses: dweee/Nix_Remote-Builders-Distributed/.github/workflows/nix-builder.yml@601d23def65db0c0d5b95fbe751040716b272221
+    uses: dweee/Nix_Remote-Builders-Distributed/.github/workflows/nix-builder.yml@58983a20fc8b13ca8a8a6998a265885fe5b08ac3
     with:
       # Optional: specify a GitHub Actions Environment name if your Tailscale
       # secrets (OAuth or OIDC) are stored within an Environment
       # (e.g. "Nix Builders" or your custom env name).
       # If using standard Repository Secrets, set this to "" or omit this line.
+      experimental_darwin_userspace: ${{ inputs.experimental_darwin_userspace }}
       environment: ${{ inputs.environment != '' && inputs.environment || '' }}
       tailscale_tags: ${{ inputs.tailscale_tags }}
       matrix: ${{ inputs.matrix }}
