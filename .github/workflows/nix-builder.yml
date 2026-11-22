@@ -85,7 +85,7 @@ jobs:
       id-token: write
       contents: read
       actions: write # purge_runs deletes earlier runs
-    uses: dweee/Nix_Remote-Builders-Distributed/.github/workflows/nix-builder.yml@58983a20fc8b13ca8a8a6998a265885fe5b08ac3
+    uses: dweee/Nix_Remote-Builders-Distributed/.github/workflows/nix-builder.yml@bbeb86e5b87bf919c0c905e6ccfde4649ef9b9f9
     with:
       # Optional: specify a GitHub Actions Environment name if your Tailscale
       # secrets (OAuth or OIDC) are stored within an Environment
@@ -100,8 +100,6 @@ jobs:
       timeout_startup: ${{ inputs.timeout_startup != '' && format('{0}', inputs.timeout_startup) || '300' }}
       timeout_idle: ${{ inputs.timeout_idle != '' && format('{0}', inputs.timeout_idle) || '300' }}
       timeout_linger: ${{ inputs.timeout_linger != '' && format('{0}', inputs.timeout_linger) || '0' }}
-      attic_substitute: "false"
-      attic_push: "false"
       niks3_substitute: "true"
       niks3_push: ${{ !inputs.skip_cache_push && vars.NIKS3_PUSH_ENABLED != 'false' && 'true' || 'false' }}
       # Private sessions exclude copied build-only sources without changing the
